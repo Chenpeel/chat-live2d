@@ -3,7 +3,7 @@ require("dotenv").config();
 const { OpenAI } = require("openai");
 
 const openai = new OpenAI({
-  baseURL: process.env.DEEPSEEK_API_URL || "https://api.deepseek.com",
+    baseURL: process.env.ALLOWED_ORIGINS || "https://api.deepseek.com",
   apiKey: process.env.DEEPSEEK_API_KEY,
 });
 

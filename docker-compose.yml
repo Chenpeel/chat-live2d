@@ -6,11 +6,13 @@ services:
     container_name: deepseek-api
     restart: always
     ports:
-      - "8812:8812"
+      - "443:8812"
     environment:
       - PORT=8812
-      - DEEPSEEK_API_KEY=""
+      - DEEPSEEK_API_KEY=
       - DEEPSEEK_API_URL=https://api.deepseek.com
       - ALLOWED_ORIGINS=https://oooo.blog,https://chenpeel.github.io
     volumes:
       - ./logs:/app/logs
+
+      - /home/Gamma/.acme.sh/chenpeel.xyz_ecc:/etc/ssl/live/chenpeel.xyz:ro
