@@ -9,10 +9,34 @@ services:
       - "443:8812"
     environment:
       - PORT=8812
-      - DEEPSEEK_API_KEY=
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
       - DEEPSEEK_API_URL=https://api.deepseek.com
       - ALLOWED_ORIGINS=https://oooo.blog,https://chenpeel.github.io
+      - REDIS_URL=redis://redis:6379
     volumes:
       - ./logs:/app/logs
-
       - /home/Gamma/.acme.sh/chenpeel.xyz_ecc:/etc/ssl/live/chenpeel.xyz:ro
+    networks:
+      - frontend # 可以访问外部网络(用于处理HTTP请求)
+      - backend # 可以访问内部网络(用于连接Redis)
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:alpine
+    container_name: chat-redis
+    restart: always
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes --maxmermory 512mb --maxmermory-policy allkeys-lru
+    networks:
+      - backend # 只连接到内部网络，无法直接从外部访问
+
+# 定义网络
+networks:
+  frontend: # 外部网络，用于与外界通信
+  backend: # 内部网络，用于内部服务间通信
+    internal: true # 将backend标记为内部网络，不能路由到外部
+
+volumes:
+  redis-data:

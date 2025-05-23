@@ -5,6 +5,7 @@ const rateLimit = require("express-rate-limit");
 require("dotenv").config();
 const https = require("https"); // 引入 https 模块
 const fs = require("fs"); // 引入 fs 模块
+const { client: redisClient } = require("./utils/redis"); // 引入Redis客户端
 
 // 创建 Express 应用
 const app = express();
@@ -46,14 +47,14 @@ const apiLimiter = rateLimit({
   legacyHeaders: false,
   message: "请求频率过高，请稍后再试。",
 });
-app.use("/api/", apiLimiter);
+app.use("/", apiLimiter);
 
 // 解析请求体
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // 路由
-app.use("/api/chat", require("./routes/chat"));
+app.use("/chat", require("./routes/chat"));
 
 // 健康检查端点
 app.get("/health", (req, res) => res.status(200).send("OK"));
@@ -63,7 +64,23 @@ app.use((req, res) => {
   res.status(404).json({ error: "Not found", success: false });
 });
 
+// 初始化 Redis 连接
+async function initRedis() {
+  try {
+    await redisClient.connect();
+    console.log("Redis连接成功");
+  } catch (error) {
+    console.error("Redis连接失败:", error);
+    console.log("应用将以无Redis模式启动，用户聊天记录将不会持久化");
+  }
+}
+
 // 创建 HTTPS 服务器并启动
-https.createServer(sslOptions, app).listen(PORT, () => {
-  console.log(`DeepSeek API 中间层 HTTPS 服务已启动，运行于端口 ${PORT}`);
-});
+const startServer = async () => {
+  await initRedis();
+  https.createServer(sslOptions, app).listen(PORT, () => {
+    console.log(`DeepSeek API 中间层 HTTPS 服务已启动，运行于端口 ${PORT}`);
+  });
+};
+
+startServer();

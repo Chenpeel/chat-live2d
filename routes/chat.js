@@ -3,7 +3,13 @@ const express = require("express");
 const router = express.Router();
 const { OpenAI } = require("openai");
 const fs = require("fs");
+const { resetSession } = require("../utils/session");
 const path = require("path");
+const {
+  getUserHistory,
+  saveUserHistory,
+  clearUserHistory,
+} = require("../utils/redis");
 
 // 初始化OpenAI客户端
 const openai = new OpenAI({
@@ -24,9 +30,6 @@ try {
     "你是纳西妲，草之神，小吉祥草王，拥有丰富的知识，语气温柔可爱又睿智。";
 }
 
-// 聊天历史记录缓存（实际生产环境应使用数据库）
-const chatHistories = {};
-
 // 聊天API
 router.post("/", async (req, res) => {
   try {
@@ -42,14 +45,12 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ success: false, error: "消息不能为空" });
     }
 
-    // 初始化或获取用户聊天历史
-    if (!chatHistories[userId]) {
-      chatHistories[userId] = [];
-    }
+    // 从Redis获取用户聊天历史
+    let chatHistory = await getUserHistory(userId);
 
     // 限制历史记录长度以避免token超限
-    if (chatHistories[userId].length > 10) {
-      chatHistories[userId] = chatHistories[userId].slice(-10);
+    if (chatHistory.length > 10) {
+      chatHistory = chatHistory.slice(-10);
     }
 
     // 获取当前时间信息（用于提供给模型）
@@ -70,7 +71,7 @@ router.post("/", async (req, res) => {
     // 构建消息历史
     const messages = [
       { role: "system", content: systemPromptWithTime },
-      ...chatHistories[userId],
+      ...chatHistory,
       { role: "user", content: message },
     ];
 
@@ -84,9 +85,11 @@ router.post("/", async (req, res) => {
 
     const reply = completion.choices[0].message.content;
 
-    // 更新聊天历史
-    chatHistories[userId].push({ role: "user", content: message });
-    chatHistories[userId].push({ role: "assistant", content: reply });
+    // 更新聊天历史并存储到Redis
+    chatHistory.push({ role: "user", content: message });
+    chatHistory.push({ role: "assistant", content: reply });
+    await saveUserHistory(userId, chatHistory);
+
     // 返回响应
     res.json({
       success: true,
@@ -104,12 +107,14 @@ router.post("/", async (req, res) => {
 });
 
 // 清除聊天历史
-router.post("/clear", (req, res) => {
-  const { userId = "anonymous" } = req.body;
-  if (chatHistories[userId]) {
-    chatHistories[userId] = [];
-  }
-  res.json({ success: true, message: "聊天历史已清除" });
+router.post("/clear", async (req, res) => {
+  const { userId = "" } = req.body;
+  const newSessionId = await resetSession(userId);
+  res.json({
+    success: true,
+    message: "聊天已重置",
+    newSessionId,
+  });
 });
 
 module.exports = router;
