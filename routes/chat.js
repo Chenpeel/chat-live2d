@@ -108,7 +108,7 @@ router.post("/", async (req, res) => {
 
 // 清除聊天历史
 router.post("/clear", async (req, res) => {
-  const { userId = "" } = req.body;
+  const { userId = "anonymous" } = req.body;
   const newSessionId = await resetSession(userId);
   res.json({
     success: true,

@@ -32,19 +32,57 @@ cp .env.example .env
 # 编辑.env文件，填入您的API密钥和其他设置
 ```
 
-3. 启动服务
+3. 配置SSL
+
+- 使用[acme.sh](https://docs.certcloud.cn/docs/edupki/acme/)
+```bash
+# 下载
+curl https://get.acme.sh | sh -s email=your@example.com
+```
+
+- 使用Aliyun的服务器 及 DNS解析
+
+> 在aliyun服务器创建Access Key用户，获取到Key和UserId的信息
+> 在服务器内设置诸如`.zshrc`, `.bashrc`等
+```bash
+echo 'export Ali_Key="*********************"'>> .zshrc
+echo 'export Ali_Secret="***********************"'>> .zshrc
+source .zshrc
+```
+
+- 申请SSL
+```bash
+cme.sh --issue --dns dns_ali \ # 使用的Aliyun DNS
+-d your_domain.com \ # 使用的你的域名
+-d "*.your_domain.com" \ # 使用 *.your_domain.com 匹配所有子域
+--keylength ec-256
+# 如果看到 类似 success、save to /home/YOUR_USER/.acme.sh/your_domain.com_ecc:/etc/ssl/live/your_domain.com 即成功
+```
+
+- 修改docker-compose.yml
+```bash
+    vim docker-compose.yml
+```
+将
+```bash
+volumes:
+  - ./logs:/app/logs
+  - /home/YOUR_USER/.acme.sh/your_domain.com_ecc:/etc/ssl/live/your_domain.com:ro # 替换为实际域名
+  # :ro表示只读
+```
+
+4. 启动服务
 ```bash
 docker-compose up -d
 ```
 
 ## Redis配置
 
-本项目使用Redis存储用户的对话历史，确保不同用户的对话上下文得到有效隔离和持久化。Redis数据将通过Docker卷进行持久化。
+使用Redis存储用户的对话历史，确保不同用户的对话上下文得到有效隔离和持久化。Redis数据将通过Docker卷进行持久化。
 
 相关配置：
-- `REDIS_URL`: Redis服务器连接URL，默认为`redis://redis:6379`
-- 数据持久化: 使用Redis的AOF（Append Only File）机制
-- 数据过期时间: 用户对话历史默认保存7天
+- 使用内部网络非暴露端口连接Redis
+- Dead time 为 1 h
 
 ## 安全性
 
