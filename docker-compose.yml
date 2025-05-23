@@ -1,21 +1,21 @@
 version: "3"
-
 services:
   api:
     build: .
     container_name: deepseek-api
     restart: always
     ports:
-      - "443:8812"
+      - "8812:8812"
     environment:
       - PORT=8812
+      - NODE_ENV=production
+      - USE_HTTPS=false  
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
       - DEEPSEEK_API_URL=https://api.deepseek.com
       - ALLOWED_ORIGINS=https://oooo.blog,https://chenpeel.github.io
       - REDIS_URL=redis://redis:6379
     volumes:
       - ./logs:/app/logs
-      - /home/Gamma/.acme.sh/chenpeel.xyz_ecc:/etc/ssl/live/chenpeel.xyz:ro
     networks:
       - frontend
       - backend
@@ -30,13 +30,12 @@ services:
       - redis-data:/data
     command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
     networks:
-      - backend # 只连接到内部网络，无法直接从外部访问
+      - backend
 
-# 定义网络
 networks:
-  frontend: # 外部网络，用于与外界通信
-  backend: # 内部网络，用于内部服务间通信
-    internal: true # 将backend标记为内部网络，不能路由到外部
+  frontend:
+  backend:
+    internal: true
 
 volumes:
   redis-data:
