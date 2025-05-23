@@ -17,8 +17,8 @@ services:
       - ./logs:/app/logs
       - /home/Gamma/.acme.sh/chenpeel.xyz_ecc:/etc/ssl/live/chenpeel.xyz:ro
     networks:
-      - frontend # 可以访问外部网络(用于处理HTTP请求)
-      - backend # 可以访问内部网络(用于连接Redis)
+      - frontend
+      - backend
     depends_on:
       - redis
 
@@ -28,7 +28,7 @@ services:
     restart: always
     volumes:
       - redis-data:/data
-    command: redis-server --appendonly yes --maxmermory 512mb --maxmermory-policy allkeys-lru
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
     networks:
       - backend # 只连接到内部网络，无法直接从外部访问
 
