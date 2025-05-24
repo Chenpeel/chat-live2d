@@ -1,7 +1,6 @@
 // chat-api/routes/chat.js
 const express = require("express");
 const router = express.Router();
-const cors = require("cors");
 const { OpenAI } = require("openai");
 const fs = require("fs");
 const { resetSession } = require("../utils/session");
@@ -12,38 +11,6 @@ const {
   saveUserHistory,
   clearUserHistory,
 } = require("../utils/redis");
-
-// 允许的来源域名
-const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",").map(origin => origin.trim()) || [
-  "https://oooo.blog",
-];
-
-// 为chat路由配置CORS
-router.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, origin);
-    } else {
-      logger.warn(`拒绝来自未授权域名的请求: ${origin}`);
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
-  methods: ["POST", "OPTIONS"], // 只允许POST和OPTIONS方法
-  allowedHeaders: ["Content-Type", "Authorization", "Origin"],
-  credentials: true,
-  maxAge: 86400,
-  preflightContinue: false, // 确保预检请求被正确处理
-  optionsSuccessStatus: 204 // 预检请求返回204
-}));
-
-// 添加OPTIONS请求处理
-router.options("/", (req, res) => {
-  res.status(204).end();
-});
-
-router.options("/clear", (req, res) => {
-  res.status(204).end();
-});
 
 // 初始化OpenAI客户端
 const openai = new OpenAI({

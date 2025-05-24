@@ -63,11 +63,20 @@ app.use(
     methods: ["GET", "POST", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "Origin"],
     credentials: true,
-    maxAge: 86400,
+    maxAge: 0, // 禁用预检请求缓存
     preflightContinue: false,
     optionsSuccessStatus: 204
   }),
 );
+
+// 添加缓存控制中间件
+app.use((req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.setHeader('Surrogate-Control', 'no-store');
+  next();
+});
 
 // 专门为健康检查端点配置CORS
 app.options("/health", cors({ 
