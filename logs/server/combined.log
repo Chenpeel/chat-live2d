@@ -1,0 +1,2 @@
+{"level":"info","message":"Redis连接成功","service":"deepseek-api","timestamp":"2025-05-24T06:43:36.963Z"}
+{"level":"info","message":"DeepSeek API 中间层 HTTP 服务已启动，运行于端口 8812","service":"deepseek-api","timestamp":"2025-05-24T06:43:36.965Z"}

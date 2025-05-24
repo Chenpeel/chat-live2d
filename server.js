@@ -44,34 +44,14 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",") || [
   "https://chenpeel.github.io",
 ];
 
-// 解析请求体
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// 日志中间件
+// 配置CORS - 除了/health外的所有路径都应用CORS限制
 app.use((req, res, next) => {
-  logger.info(`${req.method} ${req.originalUrl}`, {
-    ip: req.ip,
-    userAgent: req.get("user-agent"),
-    origin: req.get("origin") || "unknown",
-  });
-  next();
-});
-
-// 健康检查端点 - 对所有来源开放，不受CORS限制
-app.get("/health", (req, res) => {
-  logger.debug("健康检查请求");
-  res.status(200).send("OK");
-});
-
-// 为其余所有路由启用CORS限制
-app.use((req, res, next) => {
-  // 对于已处理的/health端点，跳过此中间件
+  // 健康检查端点不应用CORS限制，由Nginx处理
   if (req.path === "/health" && req.method === "GET") {
     return next();
   }
 
-  // 应用CORS限制
+  // 对其他端点应用CORS限制
   cors({
     origin: function (origin, callback) {
       if (!origin || allowedOrigins.includes(origin)) {
@@ -95,8 +75,28 @@ const apiLimiter = rateLimit({
 
 app.use("/", apiLimiter);
 
+// 解析请求体
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// 日志中间件
+app.use((req, res, next) => {
+  logger.info(`${req.method} ${req.originalUrl}`, {
+    ip: req.ip,
+    userAgent: req.get("user-agent"),
+    origin: req.get("origin") || "unknown",
+  });
+  next();
+});
+
 // 路由
 app.use("/chat", require("./routes/chat"));
+
+// 健康检查端点
+app.get("/health", (req, res) => {
+  logger.debug("健康检查请求");
+  res.status(200).send("OK");
+});
 
 // 404处理
 app.use((req, res) => {

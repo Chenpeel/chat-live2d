@@ -10,45 +10,35 @@ services:
       - "443:443"
     volumes:
       - ./nginx:/etc/nginx/conf.d
-      - ./logs/nginx:/var/log/nginx # Nginx日志映射到logs/nginx目录
+      - ./logs/nginx:/var/log/nginx
       - /home/Gamma/.acme.sh/chenpeel.xyz:/etc/ssl/live/chenpeel.xyz:ro
     networks:
       - frontend
     depends_on:
       - api
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
 
   api:
     build: .
     container_name: deepseek-api
     restart: always
     expose:
-      - "8812" # 只在内部网络暴露
+      - "8812"
     environment:
       - PORT=8812
-      - USE_HTTPS=false # 由Nginx处理HTTPS
+      - USE_HTTPS=false
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
       - DEEPSEEK_API_URL=https://api.deepseek.com
       - ALLOWED_ORIGINS=https://oooo.blog,https://chenpeel.github.io
       - REDIS_URL=redis://redis:6379
       - NODE_ENV=production
-      - LOG_DIR=/app/logs/server # 设置日志目录环境变量
+      - LOG_DIR=/app/logs/server
     volumes:
-      - ./logs:/app/logs # 映射整个日志目录
+      - ./logs:/app/logs
     networks:
       - frontend
       - backend
     depends_on:
       - redis
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
 
   redis:
     image: redis:alpine
@@ -57,19 +47,13 @@ services:
     command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru --logfile /var/log/redis/redis.log
     volumes:
       - redis-data:/data
-      - ./logs/redis:/var/log/redis # Redis日志映射到logs/redis目录
+      - ./logs/redis:/var/log/redis
     networks:
       - backend
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
 
-# 定义网络
 networks:
-  frontend: # 外部网络，用于与外界通信
-  backend: # 内部网络，用于内部服务间通信
+  frontend:
+  backend:
     internal: true
 
 volumes:
