@@ -35,8 +35,13 @@ if (USE_HTTPS) {
   }
 }
 
-// 启用安全中间件
-app.use(helmet());
+// 安全中间件配置 - 放宽一些限制以解决CORS问题
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    contentSecurityPolicy: false,
+  }),
+);
 
 // 允许的来源域名
 const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",") || [
@@ -44,24 +49,30 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",") || [
   "https://chenpeel.github.io",
 ];
 
-// 配置CORS - 除了/health外的所有路径都应用CORS限制
-app.use((req, res, next) => {
-  // 健康检查端点不应用CORS限制，由Nginx处理
-  if (req.path === "/health" && req.method === "GET") {
-    return next();
-  }
-
-  // 对其他端点应用CORS限制
+// 配置CORS - 使用更完整的配置
+app.use(
   cors({
     origin: function (origin, callback) {
+      // 健康检查端点允许所有来源访问
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
+        logger.warn(`拒绝来自未授权域名的请求: ${origin}`);
         callback(new Error("Not allowed by CORS"));
       }
     },
-    credentials: true,
-  })(req, res, next);
+    methods: ["GET", "POST", "OPTIONS"], // 明确允许的HTTP方法
+    allowedHeaders: ["Content-Type", "Authorization"], // 明确允许的头
+    credentials: true, // 允许携带凭证
+    maxAge: 86400, // 预检请求结果缓存24小时
+  }),
+);
+
+// 专门为健康检查端点配置CORS
+app.options("/health", cors({ origin: "*" })); // 处理预检请求
+app.get("/health", cors({ origin: "*" }), (req, res) => {
+  logger.debug("健康检查请求");
+  res.status(200).send("OK");
 });
 
 // 限制请求频率
@@ -89,14 +100,21 @@ app.use((req, res, next) => {
   next();
 });
 
+// 添加CORS错误处理中间件
+app.use((err, req, res, next) => {
+  if (err.name === "SyntaxError") {
+    logger.error("请求体解析错误:", { error: err.message, body: req.body });
+    return res.status(400).json({
+      success: false,
+      error: "请求格式错误",
+      details: err.message,
+    });
+  }
+  next(err);
+});
+
 // 路由
 app.use("/chat", require("./routes/chat"));
-
-// 健康检查端点
-app.get("/health", (req, res) => {
-  logger.debug("健康检查请求");
-  res.status(200).send("OK");
-});
 
 // 404处理
 app.use((req, res) => {
