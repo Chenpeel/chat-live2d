@@ -1,40 +1,75 @@
 version: "3"
+
 services:
+  nginx:
+    image: nginx:alpine
+    container_name: chat-nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx:/etc/nginx/conf.d
+      - ./logs/nginx:/var/log/nginx # Nginx日志映射到logs/nginx目录
+      - /home/Gamma/.acme.sh/chenpeel.xyz:/etc/ssl/live/chenpeel.xyz:ro
+    networks:
+      - frontend
+    depends_on:
+      - api
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   api:
     build: .
     container_name: deepseek-api
     restart: always
-    ports:
-      - "8812:8812"
+    expose:
+      - "8812" # 只在内部网络暴露
     environment:
       - PORT=8812
-      - NODE_ENV=production
-      - USE_HTTPS=false  
+      - USE_HTTPS=false # 由Nginx处理HTTPS
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
       - DEEPSEEK_API_URL=https://api.deepseek.com
       - ALLOWED_ORIGINS=https://oooo.blog,https://chenpeel.github.io
       - REDIS_URL=redis://redis:6379
+      - NODE_ENV=production
+      - LOG_DIR=/app/logs/server # 设置日志目录环境变量
     volumes:
-      - ./logs:/app/logs
+      - ./logs:/app/logs # 映射整个日志目录
     networks:
       - frontend
       - backend
     depends_on:
       - redis
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   redis:
     image: redis:alpine
     container_name: chat-redis
     restart: always
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru --logfile /var/log/redis/redis.log
     volumes:
       - redis-data:/data
-    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+      - ./logs/redis:/var/log/redis # Redis日志映射到logs/redis目录
     networks:
       - backend
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
+# 定义网络
 networks:
-  frontend:
-  backend:
+  frontend: # 外部网络，用于与外界通信
+  backend: # 内部网络，用于内部服务间通信
     internal: true
 
 volumes:
