@@ -28,7 +28,7 @@ services:
       - USE_HTTPS=false
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
       - DEEPSEEK_API_URL=https://api.deepseek.com
-      - ALLOWED_ORIGINS=https://oooo.blog,https://chenpeel.github.io
+      - ALLOWED_ORIGINS=https://oooo.blog
       - REDIS_URL=redis://redis:6379
       - NODE_ENV=production
       - LOG_DIR=/app/logs/server

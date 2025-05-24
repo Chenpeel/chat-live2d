@@ -44,9 +44,8 @@ app.use(
 );
 
 // 允许的来源域名
-const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",") || [
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",").map(origin => origin.trim()) || [
   "https://oooo.blog",
-  "https://chenpeel.github.io",
 ];
 
 // 配置CORS - 使用更完整的配置
@@ -55,14 +54,14 @@ app.use(
     origin: function (origin, callback) {
       // 健康检查端点允许所有来源访问
       if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
+        callback(null, origin); // 返回实际的origin
       } else {
         logger.warn(`拒绝来自未授权域名的请求: ${origin}`);
         callback(new Error("Not allowed by CORS"));
       }
     },
     methods: ["GET", "POST", "OPTIONS"], // 明确允许的HTTP方法
-    allowedHeaders: ["Content-Type", "Authorization"], // 明确允许的头
+    allowedHeaders: ["Content-Type", "Authorization", "Origin"], // 添加Origin到允许的头
     credentials: true, // 允许携带凭证
     maxAge: 86400, // 预检请求结果缓存24小时
   }),
