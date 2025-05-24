@@ -38,13 +38,40 @@ if (USE_HTTPS) {
 // 启用安全中间件
 app.use(helmet());
 
-// 配置 CORS
+// 允许的来源域名
 const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",") || [
   "https://oooo.blog",
   "https://chenpeel.github.io",
 ];
 
-app.use(
+// 解析请求体
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// 日志中间件
+app.use((req, res, next) => {
+  logger.info(`${req.method} ${req.originalUrl}`, {
+    ip: req.ip,
+    userAgent: req.get("user-agent"),
+    origin: req.get("origin") || "unknown",
+  });
+  next();
+});
+
+// 健康检查端点 - 对所有来源开放，不受CORS限制
+app.get("/health", (req, res) => {
+  logger.debug("健康检查请求");
+  res.status(200).send("OK");
+});
+
+// 为其余所有路由启用CORS限制
+app.use((req, res, next) => {
+  // 对于已处理的/health端点，跳过此中间件
+  if (req.path === "/health" && req.method === "GET") {
+    return next();
+  }
+
+  // 应用CORS限制
   cors({
     origin: function (origin, callback) {
       if (!origin || allowedOrigins.includes(origin)) {
@@ -54,8 +81,8 @@ app.use(
       }
     },
     credentials: true,
-  }),
-);
+  })(req, res, next);
+});
 
 // 限制请求频率
 const apiLimiter = rateLimit({
@@ -68,27 +95,8 @@ const apiLimiter = rateLimit({
 
 app.use("/", apiLimiter);
 
-// 解析请求体
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// 日志中间件
-app.use((req, res, next) => {
-  logger.info(`${req.method} ${req.originalUrl}`, {
-    ip: req.ip,
-    userAgent: req.get("user-agent"),
-  });
-  next();
-});
-
 // 路由
 app.use("/chat", require("./routes/chat"));
-
-// 健康检查端点
-app.get("/health", (req, res) => {
-  logger.debug("健康检查请求");
-  res.status(200).send("OK");
-});
 
 // 404处理
 app.use((req, res) => {
@@ -99,6 +107,16 @@ app.use((req, res) => {
 // 错误处理中间件
 app.use((err, req, res, next) => {
   logger.error("应用错误", { error: err.message, stack: err.stack });
+
+  // 处理CORS错误
+  if (err.message === "Not allowed by CORS") {
+    return res.status(403).json({
+      error: "跨域请求被拒绝",
+      success: false,
+      message: "此API仅允许来自授权域名的请求",
+    });
+  }
+
   res.status(500).json({ error: "服务器内部错误", success: false });
 });
 
@@ -122,12 +140,12 @@ const startServer = async () => {
 
   if (USE_HTTPS && sslOptions) {
     // HTTPS 模式
-    https.createServer(sslOptions, app).listen(PORT, () => {
+    https.createServer(sslOptions, app).listen(PORT, "0.0.0.0", () => {
       logger.info(`DeepSeek API 中间层 HTTPS 服务已启动，运行于端口 ${PORT}`);
     });
   } else {
     // HTTP 模式
-    http.createServer(app).listen(PORT, () => {
+    http.createServer(app).listen(PORT, "0.0.0.0", () => {
       logger.info(`DeepSeek API 中间层 HTTP 服务已启动，运行于端口 ${PORT}`);
     });
   }
