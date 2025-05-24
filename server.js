@@ -54,25 +54,28 @@ app.use(
     origin: function (origin, callback) {
       // 健康检查端点允许所有来源访问
       if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, origin); // 返回实际的origin
+        callback(null, origin);
       } else {
         logger.warn(`拒绝来自未授权域名的请求: ${origin}`);
         callback(new Error("Not allowed by CORS"));
       }
     },
-    methods: ["GET", "POST", "OPTIONS"], // 明确允许的HTTP方法
-    allowedHeaders: ["Content-Type", "Authorization", "Origin"], // 添加Origin到允许的头
-    credentials: true, // 允许携带凭证
-    maxAge: 86400, // 预检请求结果缓存24小时
+    methods: ["GET", "POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "Origin"],
+    credentials: true,
+    maxAge: 86400,
+    preflightContinue: false,
+    optionsSuccessStatus: 204
   }),
 );
 
 // 专门为健康检查端点配置CORS
-app.options("/health", cors({ origin: "*" })); // 处理预检请求
-app.get("/health", cors({ origin: "*" }), (req, res) => {
-  logger.debug("健康检查请求");
-  res.status(200).send("OK");
-});
+app.options("/health", cors({ 
+  origin: "*",
+  methods: ["GET", "OPTIONS"],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
+}));
 
 // 限制请求频率
 const apiLimiter = rateLimit({
