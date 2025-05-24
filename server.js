@@ -43,48 +43,41 @@ app.use(
   }),
 );
 
-// 允许的来源域名
-const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",").map(origin => origin.trim()) || [
-  "https://oooo.blog",
-];
-
-// 配置CORS - 使用更完整的配置
+// 配置CORS - 允许所有来源
 app.use(
   cors({
-    origin: function (origin, callback) {
-      // 健康检查端点允许所有来源访问
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, origin);
-      } else {
-        logger.warn(`拒绝来自未授权域名的请求: ${origin}`);
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
+    origin: "*", // 允许所有来源
     methods: ["GET", "POST", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "Origin"],
     credentials: true,
     maxAge: 0, // 禁用预检请求缓存
     preflightContinue: false,
-    optionsSuccessStatus: 204
+    optionsSuccessStatus: 204,
   }),
 );
 
 // 添加缓存控制中间件
 app.use((req, res, next) => {
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-  res.setHeader('Pragma', 'no-cache');
-  res.setHeader('Expires', '0');
-  res.setHeader('Surrogate-Control', 'no-store');
+  res.setHeader(
+    "Cache-Control",
+    "no-store, no-cache, must-revalidate, proxy-revalidate",
+  );
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+  res.setHeader("Surrogate-Control", "no-store");
   next();
 });
 
 // 专门为健康检查端点配置CORS
-app.options("/health", cors({ 
-  origin: "*",
-  methods: ["GET", "OPTIONS"],
-  preflightContinue: false,
-  optionsSuccessStatus: 204
-}));
+app.options(
+  "/health",
+  cors({
+    origin: "*",
+    methods: ["GET", "OPTIONS"],
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
+  }),
+);
 
 // 限制请求频率
 const apiLimiter = rateLimit({
@@ -133,19 +126,9 @@ app.use((req, res) => {
   res.status(404).json({ error: "Not found", success: false });
 });
 
-// 错误处理中间件
+// 错误处理中间件 - 移除CORS限制错误
 app.use((err, req, res, next) => {
   logger.error("应用错误", { error: err.message, stack: err.stack });
-
-  // 处理CORS错误
-  if (err.message === "Not allowed by CORS") {
-    return res.status(403).json({
-      error: "跨域请求被拒绝",
-      success: false,
-      message: "此API仅允许来自授权域名的请求",
-    });
-  }
-
   res.status(500).json({ error: "服务器内部错误", success: false });
 });
 
